@@ -1,4 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import createClient from '../client';
 import { UsermavenClient, UsermavenOptions } from '@usermaven/sdk-js';
 
@@ -7,10 +10,11 @@ import { UsermavenClient, UsermavenOptions } from '@usermaven/sdk-js';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   usermavenClient: UsermavenClient | null = null;
+  private routerSubscription: Subscription | undefined;
 
-  constructor() {}
+  constructor(private router: Router) {}
 
   ngOnInit(): void {
     const options: UsermavenOptions = {
@@ -19,6 +23,28 @@ export class AppComponent implements OnInit {
       autocapture: true,
     };
     this.usermavenClient = createClient(options);
+
+    // Track initial pageview
+    this.trackPageView();
+
+    // Track subsequent navigation events
+    this.routerSubscription = this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe(() => {
+      this.trackPageView();
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+    }
+  }
+
+  private trackPageView(): void {
+    if (this.usermavenClient) {
+      this.usermavenClient.track('pageview');
+    }
   }
 }
 
